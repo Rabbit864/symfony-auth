@@ -1,0 +1,614 @@
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reset.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reveal.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/theme/simple.min.css"
+      id="theme"
+    />
+    <link rel="stylesheet" href="highlight-phpstorm-light-theme.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Roboto+Mono&family=Roboto:wght@400;700&display=swap"
+    />
+    <style>
+      :root {
+        --r-main-font: 'Roboto', 'Noto Color Emoji', sans-serif;
+        --r-heading-font: 'Roboto', 'Noto Color Emoji', sans-serif;
+        --r-code-font: 'Roboto Mono', 'Noto Color Emoji', monospace;
+        --r-block-margin: 10px;
+      }
+      .reveal pre {
+        font-size: 0.5em;
+      }
+      .nohighlight {
+        padding: 1em !important;
+      }
+      .reveal .hljs {
+        min-height: auto;
+      }
+      td.hljs-ln-code {
+        white-space: pre;
+      }
+      .reveal h1,
+      .reveal h2,
+      .reveal h3,
+      .reveal h4,
+      .reveal h5,
+      .reveal h6,
+      .reveal pre,
+      .reveal p,
+      .reveal img {
+        margin: 0 var(--r-block-margin) calc(var(--r-block-margin) * 2);
+      }
+      .reveal pre {
+        width: auto;
+      }
+
+      .reveal .r-stack > * {
+        margin: 0;
+      }
+      .horizontal {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+      }
+      .horizontal > * {
+        flex-grow: 1;
+      }
+      .horizontal-half > * {
+        flex-grow: 0 !important;
+        width: calc(50% - var(--r-block-margin) * 2) !important;
+      }
+
+      li {
+        font-size: 30px;
+      }
+    </style>
+    <title>Auth Symfony</title>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <h2>Процесс</h2>
+          <img src="img/1.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Создание тестовой страницы</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              namespace App\Controller;
+
+              use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+              use Symfony\Component\HttpFoundation\Response;
+              use Symfony\Component\Routing\Attribute\Route;
+
+              final class TestController extends AbstractController
+              {
+                  #[Route('/test', name: 'app_test')]
+                  public function index(): Response
+                  {
+                      return $this->render('base.html.twig', [
+                          'controller_name' => 'TestController',
+                      ]);
+                  }
+              }
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Создаем нашего пользователя</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              php bin/console make:user
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Что вводим</h3>
+          <img src="img/create_user.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Наш пользователь</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              namespace App\Entity;
+
+              use App\Repository\UserRepository;
+              use Doctrine\ORM\Mapping as ORM;
+              use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+              use Symfony\Component\Security\Core\User\UserInterface;
+
+              #[ORM\Entity(repositoryClass: UserRepository::class)]
+              #[ORM\Table(name: '`user`')]
+              #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+              class User implements UserInterface, PasswordAuthenticatedUserInterface
+              {
+                  #[ORM\Id]
+                  #[ORM\GeneratedValue]
+                  #[ORM\Column]
+                  private ?int $id = null;
+
+                  #[ORM\Column(length: 180)]
+                  private ?string $email = null;
+
+                  #[ORM\Column]
+                  private array $roles = [];
+
+                  /**
+                  * @var string The hashed password
+                  */
+                  #[ORM\Column]
+                  private ?string $password = null;
+
+                  public function getId(): ?int
+                  {
+                      return $this->id;
+                  }
+
+                  public function getEmail(): ?string
+                  {
+                      return $this->email;
+                  }
+
+                  public function setEmail(string $email): static
+                  {
+                      $this->email = $email;
+
+                      return $this;
+                  }
+
+                  /**
+                  * A visual identifier that represents this user.
+                  *
+                  * @see UserInterface
+                  */
+                  public function getUserIdentifier(): string
+                  {
+                      return (string) $this->email;
+                  }
+
+                  /**
+                  * @see UserInterface
+                  */
+                  public function getRoles(): array
+                  {
+                      $roles = $this->roles;
+                      // guarantee every user at least has ROLE_USER
+                      $roles[] = 'ROLE_USER';
+
+                      return array_unique($roles);
+                  }
+
+
+                  public function setRoles(array $roles): static
+                  {
+                      $this->roles = $roles;
+
+                      return $this;
+                  }
+
+                  /**
+                  * @see PasswordAuthenticatedUserInterface
+                  */
+                  public function getPassword(): ?string
+                  {
+                      return $this->password;
+                  }
+
+                  public function setPassword(string $password): static
+                  {
+                      $this->password = $password;
+
+                      return $this;
+                  }
+
+                  #[\Deprecated]
+                  public function eraseCredentials(): void
+                  {
+                      // @deprecated, to be removed when upgrading to Symfony 8
+                  }
+              }
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Далее миграции</h3>
+
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              php bin/console make:migration
+              php bin/console doctrine:migrations:migrate
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Файл security</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              security:
+                providers:
+                  app_user_provider:
+                    entity:
+                      class: App\Entity\User
+                      property: email
+
+                  firewalls:
+                    main:
+                      pattern: ^/
+                      provider: app_user_provider
+                      http_basic: ~
+
+                  access_control:
+                    # запретить доступ всем, кроме аутентифицированных
+                    - { path: ^/, roles: ROLE_USER }
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Пример с memory пользователем</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              security:
+                providers:
+                  in_memory:
+                    memory:
+                      users:
+                        admin:
+                          password: '$2y$13$KPu...hash...' # bcrypt
+                          roles: ROLE_ADMIN
+
+                firewalls:
+                  main:
+                    http_basic: ~
+                    provider: in_memory
+
+                access_control:
+                  - { path: ^/, roles: ROLE_ADMIN }
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Генерация хэша</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              php bin/console security:hash-password
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Получение пользователя в коде и в twig</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              $this->getUser();
+            </code>
+          </pre>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              {{ app.user.email }}
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Результат</h3>
+          <img src="img/http_basic.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Теперь будем делать через form-у</h3>
+        </section>
+
+        <section>
+          <h3>Команда для создания формы</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              php bin/console make:security
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Прцесс команды</h3>
+          <img src="img/test.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Процесс команды</h3>
+          <img src="img/test2.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Созданный контроллер</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              namespace App\Controller;
+
+              use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+              use Symfony\Component\HttpFoundation\Response;
+              use Symfony\Component\Routing\Attribute\Route;
+              use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+
+              class SecurityController extends AbstractController
+              {
+                  #[Route(path: '/login', name: 'app_login')]
+                  public function login(AuthenticationUtils $authenticationUtils): Response
+                  {
+                      // if ($this->getUser()) {
+                      //     return $this->redirectToRoute('target_path');
+                      // }
+
+                      // get the login error if there is one
+                      $error = $authenticationUtils->getLastAuthenticationError();
+                      // last username entered by the user
+                      $lastUsername = $authenticationUtils->getLastUsername();
+
+                      return $this->render('security/login.html.twig', ['last_username' => $lastUsername, 'error' => $error]);
+                  }
+
+                  #[Route(path: '/logout', name: 'app_logout')]
+                  public function logout(): void
+                  {
+                      throw new \LogicException('This method can be blank - it will be intercepted by the logout key on your firewall.');
+                  }
+              }
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Форма</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+                <script type="text/template">
+              {% extends 'base.html.twig' %}
+
+              {% block title %}Log in!{% endblock %}
+
+              {% block body %}
+              <form method="post">
+                  {% if error %}
+                      <div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+                  {% endif %}
+
+                  {% if app.user %}
+                      <div class="mb-3">
+                          You are logged in as {{ app.user.userIdentifier }}, <a href="{{ path('app_logout') }}">Logout</a>
+                      </div>
+                  {% endif %}
+
+                  <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
+                  <label for="inputEmail">Email</label>
+                  <input type="email" value="{{ last_username }}" name="email" id="inputEmail" class="form-control" autocomplete="email" required autofocus>
+                  <label for="inputPassword">Password</label>
+                  <input type="password" name="password" id="inputPassword" class="form-control" autocomplete="current-password" required>
+                  <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
+
+                  <div class="checkbox mb-3">
+                      <label>
+                          <input type="checkbox" name="_remember_me"> Remember me
+                      </label>
+                  </div>
+
+                  <button class="btn btn-lg btn-primary" type="submit">
+                      Sign in
+                  </button>
+              </form>
+              {% endblock %}
+          </script>
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Authenticator</h3>
+          <pre>
+            <code class="language-php" data-trim data-line-numbers="">
+              namespace App\Security;
+
+              use Symfony\Component\HttpFoundation\RedirectResponse;
+              use Symfony\Component\HttpFoundation\Request;
+              use Symfony\Component\HttpFoundation\Response;
+              use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+              use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+              use Symfony\Component\Security\Http\Authenticator\AbstractLoginFormAuthenticator;
+              use Symfony\Component\Security\Http\Authenticator\Passport\Badge\CsrfTokenBadge;
+              use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
+              use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+              use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordCredentials;
+              use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
+              use Symfony\Component\Security\Http\SecurityRequestAttributes;
+              use Symfony\Component\Security\Http\Util\TargetPathTrait;
+
+              class AppCustomAuthenticator extends AbstractLoginFormAuthenticator
+              {
+                  use TargetPathTrait;
+
+                  public const LOGIN_ROUTE = 'app_login';
+
+                  public function __construct(private UrlGeneratorInterface $urlGenerator)
+                  {
+                  }
+
+                  public function authenticate(Request $request): Passport
+                  {
+                      $email = $request->getPayload()->getString('email');
+
+                      $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $email);
+
+                      return new Passport(
+                          new UserBadge($email),
+                          new PasswordCredentials($request->getPayload()->getString('password')),
+                          [
+                              new CsrfTokenBadge('authenticate', $request->getPayload()->getString('_csrf_token')),
+                              new RememberMeBadge(),
+                          ]
+                      );
+                  }
+
+                  public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
+                  {
+                      if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
+                          return new RedirectResponse($targetPath);
+                      }
+
+                      // For example:
+                      // return new RedirectResponse($this->urlGenerator->generate('some_route'));
+                      throw new \Exception('TODO: provide a valid redirect inside '.__FILE__);
+                  }
+
+                  protected function getLoginUrl(Request $request): string
+                  {
+                      return $this->urlGenerator->generate(self::LOGIN_ROUTE);
+                  }
+              }
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Файл security</h3>
+          <pre>
+            <code  class="language-php" data-trim data-line-numbers="">
+              security:
+                # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+                password_hashers:
+                  Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+                # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
+                providers:
+                  # used to reload user from session & other features (e.g. switch_user)
+                  app_user_provider:
+                    entity:
+                      class: App\Entity\User
+                      property: email
+                firewalls:
+                  dev:
+                    pattern: ^/(_(profiler|wdt)|css|images|js)/
+                    security: false
+                  main:
+                    lazy: true
+                    provider: app_user_provider
+                    custom_authenticator: App\Security\AppCustomAuthenticator
+                    logout:
+                      path: app_logout
+                      # where to redirect after logout
+                      # target: app_any_route
+
+                    remember_me:
+                      secret: '%kernel.secret%'
+                      lifetime: 604800
+                      path: /
+                      # by default, the feature is enabled by checking a checkbox in the
+                      # login form, uncomment the following line to always enable it.
+                      #always_remember_me: true
+
+                    # activate different ways to authenticate
+                    # https://symfony.com/doc/current/security.html#the-firewall
+
+                    # https://symfony.com/doc/current/security/impersonating_user.html
+                    # switch_user: true
+
+                access_control:
+                  - { path: ^/login, roles: PUBLIC_ACCESS }
+                  - { path: ^/, roles: ROLE_USER }
+
+              when@test:
+                security:
+                  password_hashers:
+                    Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                      algorithm: auto
+                      cost: 4 # Lowest possible value for bcrypt
+                      time_cost: 3 # Lowest possible value for argon
+                      memory_cost: 10 # Lowest possible value for argon
+
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>Результат</h3>
+          <img src="img/form_login.png" alt="" />
+        </section>
+
+        <section>
+          <h3>Резимирую</h3>
+
+          <p>Symfony Security состоит из нескольких ключевых частей:</p>
+          <ul>
+            <li>
+              Firewall — решает, должен ли запрос быть защищён и какой механизм
+              аутентификации применять.
+            </li>
+            <li>
+              Authenticator — объект, который пытается "узнать" пользователя (по
+              логину/паролю, JWT, cookie и т.д.).
+            </li>
+            <li>User Provider — загружает пользователя из БД.</li>
+            <li>
+              Token Storage — хранит текущего аутентифицированного пользователя.
+            </li>
+            <li>Access Decision Manager — решает, можно или нельзя.</li>
+          </ul>
+        </section>
+
+        <section>
+          <pre>
+            <code  class="language-php" data-trim data-line-numbers="">   
+              public function register(Request $request, UserPasswordHasherInterface $passwordHasher): Response
+                      {
+                          $user = new User();
+                          $plainPassword = $request->request->get('password');
+
+                          // 1. Хэшируем пароль
+                          $hashedPassword = $passwordHasher->hashPassword(
+                              $user,
+                              $plainPassword
+                          );
+
+                          // 2. Сохраняем хэш в сущность
+                          $user->setPassword($hashedPassword);
+                      }
+  </code>
+          </pre>
+        </section>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reveal.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/plugin/highlight/highlight.min.js"></script>
+    <script>
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        plugins: [RevealHighlight],
+        slideNumber: true,
+        autoAnimate: true,
+      });
+    </script>
+  </body>
+</html>
